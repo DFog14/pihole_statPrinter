@@ -35,11 +35,11 @@ def update():
 
 	#Display different screen based on variable 'i' value
 	if i == 0:
-		lcd.message("Temp : {:f}C".format(CPU_temp))
-		lcd.message("\nUsage : {:f}%".format(CPU_usage))
+		lcd.message("Temp : {:.1f}C".format(CPU_temp))
+		lcd.message("\nUsage : {:.1f}%".format(CPU_usage))
 	elif i == 1:
 		lcd.message(hostname)
-		lcd.message("\nIP : {:s}".format(ip))
+		lcd.message(ip)
 	
 	#This is here to prevent the screen from updating crazy fast. As a result of this the buttons need to be held down 
 	# for a time when you want to change the display content. Hopefully this is just ducttape.
