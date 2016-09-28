@@ -39,7 +39,7 @@ def update():
 		lcd.message("\nUsage : {:.1f}%".format(CPU_usage))
 	elif i == 1:
 		lcd.message(hostname)
-		lcd.message(ip)
+		lcd.message("\n" + ip)
 	
 	#This is here to prevent the screen from updating crazy fast. As a result of this the buttons need to be held down 
 	# for a time when you want to change the display content. Hopefully this is just ducttape.
