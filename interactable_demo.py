@@ -1,11 +1,12 @@
 import Adafruit_CharLCD as LCD
+import os
 import socket
 import time
 import fcntl
 import struct
 import psutil
 from  subprocess import PIPE, Popen
-from threading import Thread
+from threading import Thread, Event
 
 #Generate IP Check
 def get_ip(interface):
@@ -18,14 +19,10 @@ def get_temp():
     output, _error = process.communicate()
     return float(output[output.index('=') + 1:output.rindex("'")])
 
-#Generate Backlight Timeout
-def backlight():
-	lcd.set_color(1.0, 0.0, 0.0)
-	time.sleep(5)
-	lcd.set_color(0.0, 0.0, 0.0) 
-
 #Update And Print Values to LCD
 def update():
+	
+	lcd.clear()
 
 	#Gather system information
 	CPU_temp = get_temp()
@@ -41,42 +38,67 @@ def update():
 		lcd.message(hostname)
 		lcd.message("\n" + ip)
 	
-	#This is here to prevent the screen from updating crazy fast. As a result of this the buttons need to be held down 
-	# for a time when you want to change the display content. Hopefully this is just ducttape.
-	time.sleep(3)
-			
+#Threading function. Repeats indefinitely. Runs as a daemon thread; will quit with keyboard interrupt
+def repeater(interval, func, *args):
+	stopped = Event()
+	def loop():
+		while not stopped.wait(interval):
+			func(*args)
+	t = Thread(target=loop)
+	t.daemon = True
+	t.start()
+	return stopped.set
+
 #Main Function; Loops Until Given A Keyboard Interrupt
 def main_loop():
 	try:
-		#For some reason i has to be set to global within this loop. It also can't be set as
-		# 'global i = 0'. Maybe I've been using C a bit too much.
-		global i
+		#Define global variables for state changes
+		global i, j
 		i = 0
+		j = 0
 		
 		#For some reason the backlight defaults to on, this turns it off before the loop  initiates		
 		lcd.set_color(0.0, 0.0, 0.0)
+		
+		#Creates background thread for screen updates. This runs independently of the main loop
+		repeater(5, update)
 
 		while True:
 
-			#Creates background thread for backlight timeout. This runs independently
-			background =  Thread(target = backlight)
+			#Backgorund toggle
+			if lcd.is_pressed(LCD.SELECT):
+				time.sleep(0.5)
+				if j == 0:
+					lcd.set_color(1.0, 0.0, 0.0)
+					j = 1
+				elif j == 1:
+					lcd.set_color(0.0, 0.0, 0.0)
+					j = 0
 
 			#Buttons incriment the variable in charge of current screen display
-			if lcd.is_pressed(LCD.SELECT):
-				background.start()
 			if lcd.is_pressed(LCD.LEFT):
+				time.sleep(0.5)
 				if i == 0:
-					i = 3
+					i = 1
 				else:
 					i-=1
 			elif lcd.is_pressed(LCD.RIGHT):
-				if i == 3:
+				time.sleep(0.5)
+				if i == 1:
 					i = 0
 				else:
 					i+=1
-			update()			
-			lcd.clear()
-	
+
+			#Screen clear in case display corrupts.
+			elif lcd.is_pressed(LCD.DOWN):
+				lcd.clear()
+
+			#Reboot device
+			elif lcd.is_pressed(LCD.UP):
+				lcd.clear()
+				lcd.message("ShutDown Engaged\nRestarting in 1s")
+				os.system('sudo shutdown -r now')
+				
 	#Quits loop and exits program		
 	except KeyboardInterrupt:
 		lcd.clear()
